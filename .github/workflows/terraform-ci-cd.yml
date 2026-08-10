@@ -25,10 +25,6 @@ jobs:
         environment: [preprod, prod]
 
     env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID || secrets.ARM_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET || secrets.ARM_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || secrets.ARM_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
       TF_WORKING_DIR: "environments/${{ matrix.environment }}"
 
     steps:
@@ -36,45 +32,60 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Azure CLI Login (Screenshot Step 10: az login done)
+      # Step 2: Set Credentials
+      - name: Set Azure Credentials for Terraform
+        run: |
+          if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            echo "ARM_CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId // empty')" >> $GITHUB_ENV
+            echo "ARM_CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret // empty')" >> $GITHUB_ENV
+            echo "ARM_TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId // empty')" >> $GITHUB_ENV
+            echo "ARM_SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId // empty')" >> $GITHUB_ENV
+          fi
+          if [ -z "$ARM_CLIENT_ID" ]; then
+            echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+            echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+            echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+            echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          fi
+
+      # Step 3: Azure CLI Login (Screenshot Step 10: az login done)
       - name: Azure Login
         uses: azure/login@v2
-        continue-on-error: true
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Install Terraform (Screenshot Step 2: Install Terraform)
+      # Step 4: Setup Terraform (Screenshot Step 2: Install Terraform)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.8.0"
 
-      # Step 4: Terraform Format Check (Screenshot Step 11: terraform fmt)
+      # Step 5: Terraform Format Check (Screenshot Step 11: terraform fmt)
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check -recursive
         working-directory: ${{ env.TF_WORKING_DIR }}
         continue-on-error: true
 
-      # Step 5: Terraform Init (Screenshot Step 11: terraform init)
+      # Step 6: Terraform Init (Screenshot Step 11: terraform init)
       - name: Terraform Init
         id: init
         run: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
 
-      # Step 6: Terraform Validate (Screenshot Step 11: terraform validate)
+      # Step 7: Terraform Validate (Screenshot Step 11: terraform validate)
       - name: Terraform Validate
         id: validate
         run: terraform validate
         working-directory: ${{ env.TF_WORKING_DIR }}
 
-      # Step 7: Terraform Plan (Screenshot Step 12: terraform plan)
+      # Step 8: Terraform Plan (Screenshot Step 12: terraform plan)
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color -out=tfplan
         working-directory: ${{ env.TF_WORKING_DIR }}
 
-      # Step 8: Post Plan Summary to Pull Request
+      # Step 9: Post Plan Summary to Pull Request
       - name: Comment Plan on PR
         uses: actions/github-script@v7
         if: github.event_name == 'pull_request'
@@ -96,7 +107,7 @@ jobs:
               body: output
             });
 
-      # Step 9: Terraform Apply (Screenshot Step 13 & 14: feature branch se only plan, apply ONLY in main)
+      # Step 10: Terraform Apply (Screenshot Step 13 & 14: feature branch se only plan, apply ONLY in main)
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: terraform apply -auto-approve tfplan
