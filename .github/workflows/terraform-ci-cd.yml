@@ -25,10 +25,10 @@ jobs:
         environment: [preprod, prod]
 
     env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID || secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET || secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
       TF_WORKING_DIR: "environments/${{ matrix.environment }}"
 
     steps:
@@ -39,6 +39,7 @@ jobs:
       # Step 2: Azure CLI Login (Screenshot Step 10: az login done)
       - name: Azure Login
         uses: azure/login@v2
+        continue-on-error: true
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
