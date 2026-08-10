@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - feature/githubpipeline
   pull_request:
     branches:
       - main
+      - feature/githubpipeline
   workflow_dispatch:
 
 permissions:
